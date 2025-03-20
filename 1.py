@@ -1,5 +1,5 @@
 import cv2
-from math import sin,cos,pi
+from math import sin,cos,pi,asin
 """
 This script performs face detection and landmark identification on an input image using OpenCV and dlib libraries.
 Functions:
@@ -149,12 +149,14 @@ def change(img_path,faces):
     for i in range(len(faces)):
         ellipse = {"center": (100, 100), "axes": (50, 30), "angle": 0, "k": 0.01}
         s=faces[i]
+        print(s)
         x1=s[t1][0];y1=s[t1][1]
         x2=s[t2][0];y2=s[t2][1]
         x3=s[t3][0];y3=s[t3][1]
         cx=int((x1+x2+x3)/3)
         cy=int((y1+y2+y3)/3)
-        ellipse = {"center": (cx, cy), "axes": (abs(y1-y3)//2,abs(x2-x1)), "angle": 0, "k": 1.5}
+        #ang=asin(x)
+        ellipse = {"center": (cx, cy), "axes": (abs(x2-x1)//2,abs(y1-y3)), "angle": 0, "k": 1.5}
         print(ellipse)
         ellipses.append(ellipse)
     result = apply_lens_effect(img, ellipses)
