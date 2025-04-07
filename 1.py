@@ -228,37 +228,7 @@ def change2(img_path,faces):
         background=overlay_image(background,overlay,x,y)
     return result
 
-def frown_effect(img, brow_center, width, height, strength):
-    """
-    :param img: 输入图像
-    :param brow_center: 眉毛中心点坐标 (x,y)
-    :param width: 作用区域宽度
-    :param height: 作用区域高度
-    :param strength: 下压强度系数
-    """
-    rows, cols = img.shape[:2]
-    c1,c2=brow_center[0]-width//2,brow_center[0]+width//2
-    c3,c4=brow_center[1]-height//2,brow_center[1]+height//2
-    output = np.zeros_like(img)
-    
-    for i in range(c1,c2):
-        for j in range(c3,c4):
-            # 计算相对于眉毛中心的局部坐标
-            dx = (j - brow_center[0]) / (width/2)
-            dy = (i - brow_center[1]) / (height/2)
-            
-            if abs(dx) <= 1 and abs(dy) <= 1:
-                # 抛物线位移函数：中心下压，边缘上抬
-                delta_y = strength *10* (1 - dx**2) 
-                new_i = int(i + delta_y)
-                new_j = j
-                
-                # 边界处理
-                if 0 <= new_i < rows and 0 <= new_j < cols:
-                    output[i,j] = img[new_i, new_j]
-            else:
-                output[j,i] = img[i,j]
-    return output
+
 def smooth_bend_transform(img, regions):
     """
     对图像的多个长方形区域进行平滑倾斜弯曲变换
