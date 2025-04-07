@@ -182,9 +182,9 @@ def overlay_image(background, overlay, x, y):
     """
     # 获取前景图像的尺寸
     h, w = overlay.shape[:2]
-    na = [[255,255,255],
-          [255,255,255],
-          [255,255,255]]
+    na = [[0,0,0],
+          [0,0,0],
+          [0,0,0]]
     for i in range(h):
         for j in range(w):
             if np.sum(np.square(overlay[i][j]-na))>1000:
@@ -220,7 +220,7 @@ def change2(img_path,faces):
         lefts.append([(zx1,zy1),(a,b)])
     result = apply_lens_effect(img, ellipses)
     background = result
-    overlay = cv2.imread('zdhx.jpg')
+    overlay = cv2.imread('zdhx2.jpg')
     for i in range(len(lefts)):
         x,y=lefts[i][0]
         a,b=lefts[i][1]
@@ -228,8 +228,38 @@ def change2(img_path,faces):
         background=overlay_image(background,overlay,x,y)
     return result
 
-
-def smooth_bend_transform(image, regions):
+def frown_effect(img, brow_center, width, height, strength):
+    """
+    :param img: 输入图像
+    :param brow_center: 眉毛中心点坐标 (x,y)
+    :param width: 作用区域宽度
+    :param height: 作用区域高度
+    :param strength: 下压强度系数
+    """
+    rows, cols = img.shape[:2]
+    c1,c2=brow_center[0]-width//2,brow_center[0]+width//2
+    c3,c4=brow_center[1]-height//2,brow_center[1]+height//2
+    output = np.zeros_like(img)
+    
+    for i in range(c1,c2):
+        for j in range(c3,c4):
+            # 计算相对于眉毛中心的局部坐标
+            dx = (j - brow_center[0]) / (width/2)
+            dy = (i - brow_center[1]) / (height/2)
+            
+            if abs(dx) <= 1 and abs(dy) <= 1:
+                # 抛物线位移函数：中心下压，边缘上抬
+                delta_y = strength *10* (1 - dx**2) 
+                new_i = int(i + delta_y)
+                new_j = j
+                
+                # 边界处理
+                if 0 <= new_i < rows and 0 <= new_j < cols:
+                    output[i,j] = img[new_i, new_j]
+            else:
+                output[j,i] = img[i,j]
+    return output
+def smooth_bend_transform(img, regions):
     """
     对图像的多个长方形区域进行平滑倾斜弯曲变换
     :param image: 输入图像
@@ -242,51 +272,39 @@ def smooth_bend_transform(image, regions):
         - phase_step: 正弦函数的步长
     :return: 变换后的图像
     """
-    import numpy as np
 
-    def smooth_edge_mask(sh, decay_radius=50):
-    # 生成边缘衰减掩模（0~1）
-        mask = np.ones((height, width))
-        for i in range(0, sh[0][1]-sh[0][0]):
-            for j in range(0, sh[1][1]-sh[1][0]):
-                # 计算到边界的距离
-                d_left = j
-                d_right = width - j
-                d_top = i
-                d_bottom = height - i
-                d_min = min(d_left, d_right, d_top, d_bottom)
-                # 高斯衰减：边缘decay_radius像素内逐渐衰减到0
-                mask[i,j] = np.exp(-(max(0, decay_radius - d_min)**2) / (2*(decay_radius/3)**2))
-        return mask
-
-    result = image
-    height, width = image.shape[:2]
+    result = img.copy()
+    height, width = img.shape[:2]
 
     # 遍历每个长方形区域
     for region in regions:
+        print(region)
         x_start, x_end = region["x_start"], region["x_end"]
         y_start, y_end = region["y_start"], region["y_end"]
         amplitude = region["amplitude"]
         frequency = region["frequency"]
         phase_start = region["phase_start"]
         phase_step = region["phase_step"]
-        mask=smooth_edge_mask([(x_start, x_end),(y_start, y_end)], decay_radius=50)
         # 遍历长方形区域
-        for y in range(y_start, y_end):
-            for x in range(x_start, x_end):
-                # 计算正弦函数的相位
-                phase = phase_start + (x - x_start) * phase_step
-                
-                # 修改扭曲函数，加入衰减
-                offset = amplitude * np.sin(frequency * y + phase) #mask[y-y_start, x-x_start]
-                # 计算新坐标
-                y_new = y + offset
-                if (y_new < y_start ):
-                    y_new=y_start
-                elif (y_new > y_end):
-                    y_new=y_end
-                value= linear_interpolation(image, x, y_new)
-                result[y, x] = value
+        brow_center = (int((x_start + x_end) / 2), int((y_start + y_end) / 2))  
+        strength = amplitude 
+        for j in range(x_start, x_end):
+            phase= phase_start + (j - x_start) * phase_step
+            for i in range(y_start, y_end):
+                # 计算相对于眉毛中心的局部坐标
+                dx= (j - brow_center[0]) / (x_end - x_start)*2
+                dy= (i - brow_center[1]) / (y_end - y_start)*2
+                delta_y = 1.0*strength * (np.sin(phase)+1) * (1 - dx**2)*(1 - dy**2)
+                if (dy>0):
+                    delta_y*=2
+                new_i = .0
+                new_i = i + delta_y
+                new_i = max(y_start, min(new_i, y_end))  # 限制在范围内
+                new_j = j  # 限制在范围内
+                value = linear_interpolation(img, j, new_i)
+                #if np.sum(np.square(img[i][j]-img[new_i]))>1000
+                result[i,j] = value
+                    
 
     return result
 def change3(img_path,faces):
@@ -302,29 +320,27 @@ def change3(img_path,faces):
         x1=s[t1][0];y1=s[t1][1]
         x2=s[t2][0];y2=s[t2][1]
         bend1 = {
-        "y_start": y1-abs(x1-x2)//2, "y_end": y2+abs(x1-x2)//2,  # 水平范围
+        "y_start": y1-abs(x1-x2), "y_end": y2+abs(x1-x2)//8,  # 水平范围
         "x_start": x1, "x_end": x2,  # 垂直范围
-        "amplitude": 10,              # 弯曲幅度
+        "amplitude": abs(x1-x2)//2,              # 弯曲幅度
         "frequency": 1,               # 弯曲频率
-        "phase_start": np.pi,         # 正弦函数的初始相位（第三个四分之一周期）
-        "phase_step": np.pi /4 / (abs(x2-x1))  # 正弦函数的步长
+        "phase_start": np.pi*3.0/2.0,         # 正弦函数的初始相位（第三个四分之一周期）
+        "phase_step": np.pi/2 / (abs(x2-x1))  # 正弦函数的步长
         }
-        print(bend1)
         bends.append(bend1)
 
         #右眉毛
-        x1=s[t3][0];y1=s[t3][1]
-        x2=s[t4][0];y2=s[t4][1]
+        x1=s[t4][0];y1=s[t4][1]
+        x2=s[t3][0];y2=s[t3][1]
         
         bend2 = {
-        "y_start": y1-abs(x1-x2)//2, "y_end": y2+abs(x1-x2)//2,  # 水平范围
-        "x_start": x1, "x_end": x2,  # 垂直范围
-        "amplitude": 10,              # 弯曲幅度
+        "y_start": y1-abs(x1-x2), "y_end": y2+abs(x1-x2)//8,  # 水平范围
+        "x_start": min(x1,x2), "x_end": max(x1,x2),  # 垂直范围
+        "amplitude": abs(x1-x2)//2,              # 弯曲幅度
         "frequency": 1,               # 弯曲频率
-        "phase_start": np.pi*3/2,         # 正弦函数的初始相位（第三个四分之一周期）
-        "phase_step": np.pi /4 / ((y2+abs(x1-x2)//2)-(y1-abs(x1-x2)//2))  # 正弦函数的步长
+        "phase_start": np.pi,         # 正弦函数的初始相位（第三个四分之一周期）
+        "phase_step": np.pi /2/ (abs(x2-x1))  # 正弦函数的步长
         }
-        print(bend2)
         bends.append(bend2)
     result = smooth_bend_transform(img, bends)
     return result
@@ -342,7 +358,8 @@ def main():
         result=change3(path,faces)
     else:
         result=img
-    cv2.imwrite(r'1-4t-sin-dx-3.jpg', result)
+    name = '1-4t-frown-'+f'{choose}'+'.jpg'
+    cv2.imwrite(name, result)
 if __name__ == "__main__":
     main()
 '''
