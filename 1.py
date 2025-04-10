@@ -1,33 +1,6 @@
 import cv2
 from math import sin,cos,pi,asin,acos
-"""
-This script performs face detection and landmark identification on an input image using OpenCV and dlib libraries.
-Functions:
-    - cv2.imread: Reads an image from a file.
-    - cv2.cvtColor: Converts an image from one color space to another.
-    - dlib.get_frontal_face_detector: Returns a face detector object.
-    - dlib.shape_predictor: Loads a pre-trained shape predictor model.
-    - detector: Detects faces in the input image.
-    - predictor: Predicts facial landmarks for detected faces.
-    - cv2.circle: Draws circles on the image at specified points.
-    - cv2.namedWindow: Creates a window that can be resized.
-    - cv2.imshow: Displays an image in the specified window.
-    - cv2.waitKey: Waits for a key event.
-    - cv2.destroyAllWindows: Destroys all the windows created.
-Variables:
-    - img_path (str): Path to the input image file.
-    - img (numpy.ndarray): The input image.
-    - size (tuple): Dimensions of the input image.
-    - w (int): Width of the input image.
-    - h (int): Height of the input image.
-    - gray (numpy.ndarray): Grayscale version of the input image.
-    - detector (dlib.fhog_object_detector): Face detector object.
-    - predictor (dlib.shape_predictor): Shape predictor object.
-    - faces (dlib.rectangles): Detected faces in the image.
-    - shape (dlib.full_object_detection): Facial landmarks for a detected face.
-    - s1 (list): List of facial landmark coordinates.
-    - pt_pos (tuple): Coordinates of a facial landmark point.
-"""
+
 import dlib
 import numpy as np
 # 读取图片
@@ -57,13 +30,7 @@ def landmark_dec_fun(img):
         s1 = []
         # 遍历所有点
         for pt in shape.parts():
-            # 绘制特征点
-            pt_pos = (pt.x, pt.y)
-            cv2.circle(img, pt_pos, 5, (0,0,138), -1)
             s1.append([pt.x,pt.y])
-        cx=int((s1[19][0]+s1[24][0]+s1[66][0])/3)
-        cy=int((s1[19][1]+s1[24][1]+s1[66][1])/3)
-        cv2.circle(img, (cx,cy), 5, (0,0,138), -1)
         s.append(s1.copy())
     return s
 cnt=0
@@ -150,7 +117,7 @@ def apply_lens_effect(image, ellipses):
     return result
 def change(img_path,faces):
     img=cv2.imread(img_path)
-    t1=19
+    t1=18
     t2=25
     t3=66
     tc=27
@@ -193,6 +160,7 @@ def overlay_image(background, overlay, x, y):
     return background
 def change2(img_path,faces):
     img=cv2.imread(img_path)
+    #下半部分脸部变形
     t1,t2=1,2
     t3,t4=15,14
     t5,t6=57,8
@@ -220,6 +188,7 @@ def change2(img_path,faces):
         lefts.append([(zx1,zy1),(a,b)])
     result = apply_lens_effect(img, ellipses)
     background = result
+    # 叠加图像
     overlay = cv2.imread('zdhx2.jpg')
     for i in range(len(lefts)):
         x,y=lefts[i][0]
@@ -243,7 +212,7 @@ def smooth_bend_transform(img, regions):
     :return: 变换后的图像
     """
 
-    result = img.copy()
+    result = img
     height, width = img.shape[:2]
 
     # 遍历每个长方形区域
@@ -284,6 +253,9 @@ def change3(img_path,faces):
     t3=22
     t4=24
     bends = []
+    m=[[48,61],[53,54],[48,67],[65,54]] 
+    ce=[49,53,59,55]
+    mouths = []
     for i in range(len(faces)):
         s=faces[i]
         #左眉毛
@@ -312,13 +284,27 @@ def change3(img_path,faces):
         "phase_step": np.pi /2/ (abs(x2-x1))  # 正弦函数的步长
         }
         bends.append(bend2)
+        #嘴巴
+        for i in range(0,4):
+            x1=s[m[i][0]][0];y1=s[m[i][0]][1]
+            x2=s[m[i][1]][0];y2=s[m[i][1]][1]
+            cx,cy = (x1+x2)//2,(y1+y2)//2
+            dx,dy = cx-s[ce[i]][0],cy-s[ce[i]][1]
+            dis=np.sqrt(dx**2+dy**2)
+            d = int(np.sqrt((x1-x2)**2+(y1-y2)**2))
+            ang=asin(dx/dis)
+            ellipse = {"center": (cx, cy), "axes": (d,d), "angle": ang, "k": 1.5}
+            mouths.append(ellipse)
+
     result = smooth_bend_transform(img, bends)
+    result = apply_lens_effect(result, mouths)
     return result
 
-def main():
-    path="c.JPG"
+def face(path="./photos/6-1080p.JPG",choose=1):
+    if (path[-4:]!=".JPG"):
+        return "photo name error"
+    path="./photos/6-1080p.JPG"
     img = cv2.imread(path)
-    choose=3
     faces=landmark_dec_fun(img)
     if choose==1:
          result=change(path,faces)
@@ -328,9 +314,15 @@ def main():
         result=change3(path,faces)
     else:
         result=img
-    name = '1-4t-frown-'+f'{choose}'+'.jpg'
+    name = '1-4t-fr-'+f'{choose}'+'.jpg'
     cv2.imwrite(name, result)
 if __name__ == "__main__":
-    main()
+    path = "./photos/6-1080p.JPG"
+    choose=2
+    face(path,choose)
+    #img = cv2.imread(path)
+    #faces=landmark_dec_fun(img)
+    #result=change(path,faces)
+    #cv2.imwrite('1-4t-frown.jpg', result)
 '''
 '''
