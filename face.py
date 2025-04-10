@@ -34,24 +34,26 @@ class FaceTransformer:
         """鼻子区域变形 (基于19/24/66特征点)"""
         img= self.img.copy()
         ellipses = []
-        
+        t1=18
+        t2=25
+        t3=66
+        tc=27
+        tc1=51
         # 鼻梁区域椭圆参数计算
         for face in self.landmarks:
-            pt19, pt24, pt66 = face[19], face[24], face[66]
-            cx = int((pt19[0] + pt24[0] + pt66[0])/3)
-            cy = int((pt19[1] + pt24[1] + pt66[1])/3)
-            
-            # 椭圆角度计算（基于27/51号特征点）
-            dx = face[27][0] - face[51][0]
-            dy = face[27][1] - face[51][1]
-            angle = asin(dx / np.hypot(dx, dy))
-            
-            ellipses.append({
-                "center": (cx, cy),
-                "axes": (abs(pt24[0]-pt19[0])//2, abs(pt19[1]-pt66[1])),
-                "angle": angle,
-                "k": 1.5
-            })
+            s=face
+            x1=s[t1][0];y1=s[t1][1]
+            x2=s[t2][0];y2=s[t2][1]
+            x3=s[t3][0];y3=s[t3][1]
+            cx=int((x1+x2+x3)/3)
+            cy=int((y1+y2+y3)/3)
+
+            dx,dy=s[tc][0]-s[tc1][0],s[tc][1]-s[tc1][1]
+            dis=np.sqrt(dx**2+dy**2)
+            ang=asin(dx/dis)
+            ellipse = {"center": (cx, cy), "axes": (abs(x2-x1)//2,abs(y1-y3)), "angle": ang, "k": 1.5}
+            #print(ellipse)
+            ellipses.append(ellipse)
         
         return self._apply_lens_effect(img, ellipses)
 
@@ -301,14 +303,19 @@ class FaceTransformer:
                     result[i,j] = value
         return result
 
-if __name__ == "__main__":
-    img_path = "./photos/1.JPG"
+if __name__=="__main__":
     ft = FaceTransformer()
-    ft._get_landmarks(img_path)
-    result1 = ft.change1()
-    cv2.imwrite("./photos/nose_lens.jpg", result1)
-    
-    result2 = ft.change2()
-    cv2.imwrite("./photos/lower_face_overlay.jpg", result2)
-    result3 = ft.change3()
-    cv2.imwrite("./photos/brow_mouth_bend.jpg", result3)
+    ft._get_landmarks()
+    img1 = ft.change1()
+    img2 = ft.change2("zdhx2.jpg")
+    img3 = ft.change3()
+    cv2.imwrite("img1.jpg", img1)
+    cv2.imwrite("img2.jpg", img2)
+    cv2.imwrite("img3.jpg", img3)
+    ft._get_landmarks("./photos/1.JPG")
+    img1 = ft.change1()
+    img2 = ft.change2("zdhx2.jpg")
+    img3 = ft.change3()
+    cv2.imwrite("img1.jpg", img1)
+    cv2.imwrite("img2.jpg", img2)
+    cv2.imwrite("img3.jpg", img3)
