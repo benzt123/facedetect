@@ -24,4 +24,4 @@ RUN pip install -r requirements.txt
 EXPOSE 80
 
 # 启动命令
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT}"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port","80"]
